@@ -1,0 +1,122 @@
+#--------------------------------------------------------------------
+{{ ansible_managed | comment }}
+#--------------------------------------------------------------------
+# Global settings
+#--------------------------------------------------------------------
+global
+    log         127.0.0.1 local2
+
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+
+    # turn on stats unix socket
+    stats socket /var/lib/haproxy/stats
+
+#--------------------------------------------------------------------
+# common defaults that all the 'listen' and 'backend' sections will
+# use if not designated in their block
+#--------------------------------------------------------------------
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+
+#--------------------------------------------------------------------
+# authentication userlist (encrypted password: user1)
+#--------------------------------------------------------------------
+userlist users-auth
+    user user1 password $6$yVPK8au/30ya/$4ikBx7uc/DBfCRLGMy7BQd92o.hDE8pMjnKNx4CqiD5sZkN1racAEjDgq2SqxT1b42JHAdoyQeYhA.QRr2TmN.
+
+#--------------------------------------------------------------------
+# show HAProxy Statistics Report page on /stats URL on port 5001
+#--------------------------------------------------------------------
+listen stats
+    #Listen on all IP's on port 5001
+    bind *:5001
+
+    mode http
+    balance
+
+    timeout client 5000
+    timeout connect 4000
+    timeout server 30000
+
+    #This is the virtual URL to access the stats page
+    stats uri /stats
+
+    # Authentication userlist
+    acl allow_users http_auth(users-auth)
+    http-request auth realm CustomAuthRealm if !allow_users
+
+    #Authentication realm. This can be set to anything. Escape space characters with a backslash.
+    #stats realm HAProxy\ Statistics
+
+    #The user/pass you want to use. Change this password!
+    #stats auth user:user
+
+    #This allows you to take down and bring up back end servers.
+    #This will produce an error on older versions of HAProxy.
+    #stats admin if TRUE
+
+    stats show-legends
+    stats show-node
+    stats show-desc 'haproxy.example.com'
+
+#--------------------------------------------------------------------
+# http-in frontend which proxies to the backends
+#--------------------------------------------------------------------
+frontend http-in
+    bind *:80
+    mode http
+
+    {% for item in haproxy_backend_list -%}
+    acl {{ item.name }} path_beg -i /{{ item.name }}
+    {% endfor -%}
+    acl balance hdr(host) -i haproxy.example.com
+
+    #----------------------------------------------------------------
+    # ! "use_backend" rules are evaluated in their declaration order,
+    #   and the first one which matches will assign the backend
+    #----------------------------------------------------------------
+    {% for item in haproxy_backend_list -%}
+    use_backend {{ item.name }}_backend if {{ item.name }}
+    {% endfor -%}
+    use_backend balance_backend if balance
+
+#--------------------------------------------------------------------
+# list of static backends for servers - red/green/blue
+#--------------------------------------------------------------------
+{% for item in haproxy_backend_list %}
+backend {{ item.name }}_backend
+    mode http
+    http-request set-uri /index.html
+    server {{ item.name }} {{ item.host }}:{{ item.port }} check
+
+{% endfor -%}
+
+#--------------------------------------------------------------------
+# round robin balancing between red/green/blue backends
+#--------------------------------------------------------------------
+backend balance_backend
+    mode http
+    balance     roundrobin
+    {% for item in haproxy_backend_list -%}
+    server {{ item.name }} {{ item.host }}:{{ item.port }} check
+    {% endfor %}

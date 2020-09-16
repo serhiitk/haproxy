@@ -1,0 +1,31 @@
+---
+- name: Install and configure HAProxy
+  gather_facts: no
+  hosts: haproxy_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - import_tasks: up_backend_nodes.yml
+
+    - name: Install HAProxy
+      apt:
+        name: haproxy
+        state: latest
+        update_cache: yes
+
+    - name: Copy HAProxy configuration
+      template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+      notify: restart HAProxy
+
+  handlers:
+
+    - name: restart HAProxy
+      service:
+        name: haproxy
+        state: restarted
+...

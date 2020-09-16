@@ -1,0 +1,26 @@
+---
+  docker_api_url: "tcp://192.168.56.101:2375"
+
+  alpine_add_python: sh -c "apk add --no-cache python2 &&
+                               exec httpd-foreground"
+
+  container_name_prefix: "backend_"
+
+  haproxy_backend_list:
+    - name: 'red'
+      host: '192.168.56.101'
+      port: 8085
+    - name: 'green'
+      host: '192.168.56.101'
+      port: 8086
+    - name: 'blue'
+      host: '192.168.56.101'
+      port: 8087
+
+  python_dependencies:
+    - 'python-pip'
+    - 'python-setuptools'
+    - 'virtualenv'
+    # backports needs to python2 installation
+    - 'python-backports.ssl-match-hostname'
+...
