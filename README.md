@@ -8,7 +8,7 @@ Variables defines in `./vars/default_vars.yml`
 
     docker_api_url: "tcp://<remote_docker_ip>:2375"
     ....
-    container_name_prefix: "backend_"
+    container_name_prefix: "haproxy_backend_"
     haproxy_backend_list:
       - name: 'red'
         host: '<remote_docker_ip>'
@@ -24,12 +24,12 @@ Variables defines in `./vars/default_vars.yml`
 
 ## Prerequisites
 ### Preparation Docker server (if it's the first start)
-- start deployment Docker server (from repository: **docker_systemd**): 
+- start deployment Docker server (from repository: **docker_systemd**):
 
       $ ansible-playbook deploy_containers.yml
 
 ## Deploy HAProxy Server
-- start deployment HAProxy with configure backends ( *red/green/blue* ) : 
+- start deployment HAProxy with configure backends ( *red/green/blue* ) :
 
       $ ansible-playbook deploy_haproxy.yml
 
@@ -47,4 +47,4 @@ Configuration template file located at `./templates/haproxy.cfg.j2` defines:
 
     $ ansible-playbook remove_backend_nodes.yml
 
-***NOTE:*** HAProxy Server must be up and running before. 
+***NOTE:*** HAProxy Server must be up and running before.
